@@ -4,7 +4,7 @@ Created on Fri Sep 22 16:00:42 2017
 
 @author: Matthew
 """
-import unittest
+import unittest, time
 
 #------------------------------------------------------------------------------
 #                       Brute Force Implementation
@@ -20,27 +20,35 @@ def BruteForceStringMatch(T, P):
             An array of characters representing a pattern to search for
             within the text
     Output:
-        @return:
-            The index of the first character in the text that starts
+        @return: *Index, time taken, number of basic operations performed
+            *The index of the first character in the text that starts
             a matching substring, or -1 if the search is unsuccessful
     '''
     # So we can use exact algorithm terminology
     n = len(T)
     m = len(P)
     
+    # Take note of start time, and begin basic operation counter
+    start = time.time()
+    bo_count = 0
+    
     # Loop through entire text up to 'm' characters from the end
     for i in range(n-m):
+        
+        bo_count += 1 # Every for loop
         
         # Check to see if we're still matching the pattern
         j = 0
         while(j < m and P[j] == T[i + j]):
+            bo_count += 1 # Every inner loop
             j += 1
         # If we matched the pattern for the length of the pattern
         # number of times, then we found it, return i
-        if j == m: return(i)
+        if j == m: return(i, time.time() - start, bo_count)
+
         
     # Pattern was not found, so return -1
-    return(-1)
+    return(-1, time.time() - start, bo_count)
 
 
 #------------------------------------------------------------------------------
@@ -54,7 +62,7 @@ class TestBruteForce(unittest.TestCase):
         text    = 'text to search for pattern in'
         pattern = 'pattern'
         
-        found_index = BruteForceStringMatch(text, pattern)        
+        found_index, time, bo = BruteForceStringMatch(text, pattern)        
         self.assertEqual(found_index, 19)
     
     # Test to return -1 when not found
@@ -62,7 +70,7 @@ class TestBruteForce(unittest.TestCase):
         text    = 'testtesttesttesttest'
         pattern = 'nope'
         
-        found_index = BruteForceStringMatch(text, pattern)
+        found_index, time, bo = BruteForceStringMatch(text, pattern)
         self.assertEqual(found_index, -1)
     
     
@@ -71,7 +79,7 @@ class TestBruteForce(unittest.TestCase):
         text    = 'short'
         pattern = 'longerthantext'
         
-        found_index = BruteForceStringMatch(text, pattern)
+        found_index, time, bo = BruteForceStringMatch(text, pattern)
         self.assertEqual(found_index, -1)
         
         
@@ -80,7 +88,7 @@ class TestBruteForce(unittest.TestCase):
         text    = 'texttosearchwithin'
         pattern = ''
         
-        found_index = BruteForceStringMatch(text, pattern)
+        found_index, time, bo = BruteForceStringMatch(text, pattern)
         self.assertEqual(found_index, -1)
 
         
@@ -89,7 +97,7 @@ class TestBruteForce(unittest.TestCase):
         text    = ''
         pattern = 'test'
         
-        found_index = BruteForceStringMatch(text, pattern)
+        found_index, time, bo = BruteForceStringMatch(text, pattern)
         self.assertEqual(found_index, -1)
 
 
@@ -116,6 +124,10 @@ def HorspoolMatching(P, T):
     m = len(P)
     n = len(T)
     
+    # Prepare start time and basic operation counter
+    start = time.time()
+    bo_count = 0
+    
     # Generate table of shifts
     table = ShiftTable(P)
     
@@ -126,13 +138,16 @@ def HorspoolMatching(P, T):
     while(i <= n-1):
         k = 0       # Number of matched characters
         
+        bo_count += 1
+        
         # While we haven't finished matching all pattern length elements
         #    and our current pattern element matches the text element
         while(k <= m-1 and P[m-1-k] == T[i-k]):
+            bo_count += 1
             k += 1
         # Once we've bailed out of this loop, either we matched all elements...
         if(k == m):
-            return(i-m+1)
+            return(i-m+1, time.time() - start, bo_count)
         # Or we bailed out because the pattern no longer matched...
         else:
             # Shift pattern along by the shift table value of where this
@@ -141,7 +156,7 @@ def HorspoolMatching(P, T):
     
     # If we run the full while loop and got to the end of the text
     #   withing a match, then return -1
-    return(-1)
+    return(-1, time.time() - start, bo_count)
 
 
 def ShiftTable(P):
@@ -185,7 +200,7 @@ class TestHorspool(unittest.TestCase):
         text    = 'text to search for pattern in'
         pattern = 'pattern'
         
-        found_index = HorspoolMatching(pattern, text)        
+        found_index, time, bo = HorspoolMatching(pattern, text)        
         self.assertEqual(found_index, 19)
     
     # Test to return -1 when not found
@@ -193,7 +208,7 @@ class TestHorspool(unittest.TestCase):
         text    = 'testtesttesttesttest'
         pattern = 'nope'
         
-        found_index = HorspoolMatching(pattern, text)
+        found_index, time, bo = HorspoolMatching(pattern, text)
         self.assertEqual(found_index, -1)
     
     
@@ -202,7 +217,7 @@ class TestHorspool(unittest.TestCase):
         text    = 'short'
         pattern = 'longerthantext'
         
-        found_index = HorspoolMatching(pattern, text)
+        found_index, time, bo = HorspoolMatching(pattern, text)
         self.assertEqual(found_index, -1)
         
         
@@ -211,7 +226,7 @@ class TestHorspool(unittest.TestCase):
         text    = 'texttosearchwithin'
         pattern = ''
         
-        found_index = HorspoolMatching(pattern, text)
+        found_index, time, bo = HorspoolMatching(pattern, text)
         self.assertEqual(found_index, -1)
 
         
@@ -220,7 +235,7 @@ class TestHorspool(unittest.TestCase):
         text    = ''
         pattern = 'test'
         
-        found_index = HorspoolMatching(pattern, text)
+        found_index, time, bo = HorspoolMatching(pattern, text)
         self.assertEqual(found_index, -1)
         
         
