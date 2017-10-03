@@ -1,0 +1,195 @@
+---
+title: "String Matching Analaysis"
+author: "Matthew Hennegan"
+date: "3 October 2017"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+library('dplyr')
+library('ggplot2')
+
+```
+
+``` {r}
+
+data <- read.csv("data.csv")
+graph_col <- '#FF9999'
+
+```
+
+
+``` {r}
+
+time_data <- data %>%
+  group_by(Search.Method) %>%
+  summarize('Average.Time' = mean(Time.Taken))
+
+
+basic_operation_data <- data %>%
+  group_by(Search.Method) %>%
+  summarize('Median.Operations' = median(Basic.Operation.Count))
+
+```
+
+``` {r}
+
+ggplot(time_data, aes(factor(Search.Method), Average.Time)) + 
+  geom_bar(stat = 'identity', fill = '#FF9999', color = 'black')
+
+ggplot(basic_operation_data, aes(factor(Search.Method), Median.Operations)) + 
+  geom_bar(stat = 'identity', fill = '#FF9999', color = 'black')
+
+```
+
+``` {r}
+
+ggplot(data, aes(factor(Search.Method), Basic.Operation.Count)) + 
+  geom_boxplot(fill = graph_col) + 
+  labs(title = "Basic Operations of: Text Length 1,000,000 | Pattern Length: 7",
+       x = "Search Method Used",
+       y = "Basic Operations Performed")
+
+```
+
+
+``` {r}
+
+# Specify budget to get data for
+budget <- 1800
+data$True.Cost <- data$Best.Cost
+
+# Generate boxplot and bar graph for combos within a budget
+#----------------------------------------------------------
+combo_medians <- data %>%
+  filter(Budget==budget) %>%
+  group_by(Population) %>%
+  summarize('Median.Cost' = median(True.Cost))
+  
+combo_data <- data %>%
+  filter(Budget==budget)
+
+ggplot(combo_data, aes(factor(Population), True.Cost)) +
+  geom_boxplot()
+
+ggplot(combo_medians, aes(factor(Population), Median.Cost)) +
+  geom_bar(stat = 'identity', fill = "#FF9999", color = "Black") +
+  labs(x = "Population/Generation Settings", y= "Median Best Cost", title = "Median Best Cost For Each Combination Within a Budget of 1800") +
+  scale_x_discrete(labels=c("POP. 1, GEN. 1800", "POP. 2, GEN. 900", "POP. 3, GEN. 600", "POP. 4, GEN. 450","POP. 5, GEN. 360", "POP. 6, GEN. 300","POP. 8, GEN.225","POP. 9, GEN. 200","POP. 10, GEN. 180", "POP. 12, GEN. 150", "POP. 15, GEN. 120", "POP. 18, GEN. 100", "POP. 20, GEN. 90", "POP. 24, GEN. 75", "POP. 25, GEN. 72", "POP. 30, GEN. 60", "POP. 36, GEN. 50", "POP. 40, GEN. 45", "POP. 45, GEN. 40", "POP. 50, GEN. 36", "POP. 60, GEN. 30", "POP. 72, GEN. 25", "POP. 75, GEN. 24", "POP. 90, GEN. 20", "POP. 100, GEN. 18", "POP. 120, GEN. 15", "POP. 50, GEN. 12", "POP. 180, GEN. 10", "POP. 200, GEN. 9", "POP. 225, GEN. 8", "POP. 300, GEN. 6", "POP. 360, GEN. 5", "POP. 450, GEN. 4", "POP. 600, GEN. 3", "POP. 900, GEN. 2", "POP. 1800, GEN. 1")) +
+  theme(axis.text.x = element_text(angle = 75, hjust = 1)) +
+  geom_text(aes(label = round(Median.Cost, 2)), vjust = -0.5, size = 2)
+
+```
+
+``` {r}
+
+# Just functions to generalize stuff
+
+# Returns non-inf data for budget 'x' given the full set of data 'df'
+budget_data <- function(df, x){
+  # Compare combo medians
+  medians <- data %>%
+  filter(Budget==x) %>%
+  group_by(Population) %>%
+  summarize('Cost' = median(True.Cost))
+    
+  # Get best combo
+  idx <- which.min(medians$Cost)
+  best_pop <- as.numeric(medians[idx,'Population'])
+  print(best_pop)
+  
+  # Get data for best combo
+  best_data <- data %>%
+    filter(Budget==x) %>%
+    filter(Population==best_pop) %>%
+    filter(True.Cost != "Inf") %>%
+    select(Budget, True.Cost)
+
+  # Return best combo data
+  return(best_data)
+}
+
+# Returns p.value between budget x and y
+budgets_p_value <- function(df, x, y){
+  val1 <- budget_data(df, x)$True.Cost
+  val2 <- budget_data(df, y)$True.Cost
+  
+  return(t.test(val1, val2)['p.value'])
+}
+
+```
+
+
+``` {r}
+
+# Generate list of all p.values between neighbouring budgets
+
+# Use all budgets
+budgets <- unique(data$Budget)
+
+# P-hack hard for a nice graph
+#budgets <- c(200, 600, 1600, 2400)
+
+
+#---------------------------------------------------------------------------------------------
+p_values <- c()
+budget_comp <- c()
+for(i in 1:(length(budgets) - 1)){
+  p_values <- c(p_values, budgets_p_value(data, budgets[i], budgets[i+1]))
+  budget_comp <- c(budget_comp, paste(as.character(budgets[i]), '-', as.character(budgets[i+1])))
+}
+
+p_values <- unlist(p_values)
+budget_comp <- factor(budget_comp, levels = budget_comp)
+
+for_graph <- data.frame('Budget.Comparison' = budget_comp, 'P.Values' = p_values)
+
+
+
+ggplot(for_graph, aes(Budget.Comparison, P.Values)) +
+  geom_bar(stat = 'identity') +
+  scale_y_continuous(limits = c(0, 0.1))
+
+```
+
+
+``` {r}
+
+# Create boxplot and bar graph for all budgets (comparing their best combo)
+budgets <- unique(data$Budget)
+budget_bests <- vector("list", length(budgets))
+
+for(i in 1:length(budgets)){
+  budget_bests[[i]] <- budget_data(data, budgets[i])
+}
+
+combined <- do.call("rbind", budget_bests)
+
+ggplot(combined, aes(factor(Budget), True.Cost)) +
+  geom_boxplot()
+
+medians <- combined %>%
+  group_by(Budget) %>%
+  summarize('Median.True.Cost' = median(True.Cost))
+
+ggplot(medians, aes(factor(Budget), Median.True.Cost)) +
+  geom_bar(stat='identity')
+
+# Use the same colour for consistency
+myBarCol <- "#f46b42"
+
+# Display plot
+ggplot(medians, aes(x = factor(Budget), y = Median.True.Cost)) +
+  geom_bar(fill = "#FF9999", color = "Black", stat = "identity") +
+  geom_text(aes(label = round(Median.True.Cost, 2)), vjust = -0.5) +
+  labs(title = "Median Costs for Budgets",
+       x = "Computational Budget", y = "Median Cost") +
+  scale_y_continuous(expand=c(0, 0)) +
+  expand_limits(y = c(0, 3.5)) +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+  
+```
+
+
